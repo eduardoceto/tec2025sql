@@ -5,101 +5,136 @@
     <meta charset="UTF-8">
     <title>Asistente Tienda IA</title>
     <style>
+        :root {
+            --color-bg: #f4f4f4;
+            --color-chat-bg: #fff;
+            --color-bubble: #e6f0ff;
+            --color-bubble-user: #d1ffe6;
+            --color-text: #222;
+            --color-table-even: #f7faff;
+            --color-table-odd: #fff;
+            --color-border: #bbb;
+            --color-button-bg: #4f8cff;
+            --color-button-hover: #2563eb;
+            --color-button-text: #fff;
+        }
+        body.darkmode {
+            --color-bg: #181c1f;
+            --color-chat-bg: #23272b;
+            --color-bubble: #263445;
+            --color-bubble-user: #1e3a2a;
+            --color-text: #e6e6e6;
+            --color-table-even: #23272b;
+            --color-table-odd: #1a1d20;
+            --color-border: #444;
+            --color-button-bg: #222e3a;
+            --color-button-hover: #3b82f6;
+            --color-button-text: #fff;
+        }
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
             padding: 20px;
-            background: #f4f4f4;
+            background: var(--color-bg);
+            color: var(--color-text);
+            transition: background 0.3s, color 0.3s;
         }
-
         .chat {
             max-width: 900px;
             min-height: 80vh;
             margin: 30px auto;
-            background: #fff;
+            background: var(--color-chat-bg);
             border-radius: 16px;
             box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
             padding: 30px 30px 30px 30px;
+            transition: background 0.3s;
         }
-
+        .theme-toggle {
+            position: absolute;
+            right: 40px;
+            top: 40px;
+            background: var(--color-button-bg);
+            color: var(--color-button-text);
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        .theme-toggle:hover {
+            background: var(--color-button-hover);
+        }
         .bubble {
-            background: #e6f0ff;
+            background: var(--color-bubble);
             border-radius: 16px 16px 4px 16px;
             padding: 18px 20px;
             margin-bottom: 18px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
             font-size: 1.15em;
-            color: #222;
+            color: var(--color-text);
             max-width: 100%;
-            /* Quitar animación para evitar temblor en tablas */
             opacity: 1;
             transform: none;
-            /* animation: fadeInUp 0.5s forwards; */
         }
-
         .bubble.user {
-            background: #d1ffe6;
+            background: var(--color-bubble-user);
             border-radius: 16px 16px 16px 4px;
             align-self: flex-end;
         }
-
         @keyframes fadeInUp {
             to {
                 opacity: 1;
                 transform: none;
             }
         }
-
         .small {
             font-size: 0.9em;
             color: #777;
             margin-top: 10px;
         }
-
         .loader {
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 20px 0;
         }
-
         .dot {
             width: 12px;
             height: 12px;
             margin: 0 4px;
-            background: #4f8cff;
+            background: var(--color-button-bg);
             border-radius: 50%;
             display: inline-block;
             animation: bounce 1.2s infinite;
         }
-
         .dot:nth-child(2) {
             animation-delay: 0.2s;
         }
-
         .dot:nth-child(3) {
             animation-delay: 0.4s;
         }
-
         @keyframes bounce {
             0%,
             80%,
             100% {
                 transform: scale(1);
             }
-
             40% {
                 transform: scale(1.5);
             }
         }
-
         input,
         button {
             font-size: 1.1em;
         }
-
         button {
-            background: #4f8cff;
-            color: #fff;
+            background: var(--color-button-bg);
+            color: var(--color-button-text);
             border: none;
             border-radius: 8px;
             padding: 10px 22px;
@@ -107,17 +142,17 @@
             cursor: pointer;
             transition: background 0.2s;
         }
-
         button:hover {
-            background: #2563eb;
+            background: var(--color-button-hover);
         }
-
         #question {
             margin-bottom: 10px;
             border-radius: 8px;
             border: 1px solid #ccc;
+            background: var(--color-chat-bg);
+            color: var(--color-text);
+            transition: background 0.3s, color 0.3s;
         }
-
         #chatLog {
             display: flex;
             flex-direction: column;
@@ -125,43 +160,37 @@
             max-height: 65vh;
             overflow-y: auto;
         }
-
-        /* Scroll SOLO para tablas */
-
         .table-scroll {
             max-width: 100%;
             max-height: 350px;
             overflow-x: auto;
             overflow-y: auto;
             margin: 0 auto 10px auto;
-            background: #fff;
+            background: var(--color-chat-bg);
         }
-
         table {
             border-collapse: collapse;
             width: 100%;
             min-width: 600px;
         }
-
         th,
         td {
             padding: 8px 16px;
-            border: 1px solid #bbb;
+            border: 1px solid var(--color-border);
             text-align: left;
             font-size: 1em;
         }
-
         tr:nth-child(even) {
-            background: #f7faff;
+            background: var(--color-table-even);
         }
-
         tr:nth-child(odd) {
-            background: #fff;
+            background: var(--color-table-odd);
         }
     </style>
 </head>
 
 <body>
+    <button class="theme-toggle" id="themeToggle" title="Cambiar tema" aria-label="Cambiar tema">🌙</button>
     <div class="chat">
         <h2 style="text-align:center; font-size:2em; margin-bottom: 20px;">🛍️ Asistente de Tienda IA</h2>
         <input id="question" placeholder="¿Qué productos se han vendido más?" style="width: 100%; padding: 12px;" />
@@ -173,6 +202,25 @@
     </div>
 
     <script>
+        // Tema: darkmode/ligthmode
+        function setTheme(dark) {
+            document.body.classList.toggle('darkmode', dark);
+            document.getElementById('themeToggle').textContent = dark ? '☀️' : '🌙';
+            localStorage.setItem('darkmode', dark ? '1' : '0');
+        }
+        document.getElementById('themeToggle').onclick = function() {
+            setTheme(!document.body.classList.contains('darkmode'));
+        };
+        // Inicializar según preferencia previa o sistema
+        (function() {
+            const darkPref = localStorage.getItem('darkmode');
+            if (darkPref === '1' || (darkPref === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                setTheme(true);
+            } else {
+                setTheme(false);
+            }
+        })();
+
         function addMessage(content, isUser = false) {
             const div = document.createElement("div");
             div.className = "bubble" + (isUser ? " user" : "");
