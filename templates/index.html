@@ -193,6 +193,11 @@
     <button class="theme-toggle" id="themeToggle" title="Cambiar tema" aria-label="Cambiar tema">🌙</button>
     <div class="chat">
         <h2 style="text-align:center; font-size:2em; margin-bottom: 20px;">🛍️ Asistente de Tienda IA</h2>
+        <form id="uploadForm" style="margin-bottom: 18px; display: flex; gap: 10px; align-items: center;">
+            <input type="file" id="fileInput" name="file" style="flex:1;" />
+            <button type="submit">Subir archivo</button>
+            <span id="fileName" style="font-size:0.95em; color:var(--color-text);"></span>
+        </form>
         <input id="question" placeholder="¿Qué productos se han vendido más?" style="width: 100%; padding: 12px;" />
         <button onclick="sendQuestion()">Preguntar</button>
         <div id="chatLog"></div>
@@ -268,11 +273,89 @@
             document.getElementById("chatLog").appendChild(container);
             // Mostrar la respuesta de golpe, sin animación para evitar temblor en tablas
             container.innerHTML = html;
+            // Si hay tabla, agregar botón de descarga CSV
+            const table = container.querySelector('table');
+            if (table) {
+                const btn = document.createElement('button');
+                btn.textContent = 'Descargar CSV';
+                btn.style.margin = '10px 0 0 0';
+                btn.onclick = function() {
+                    const csv = tableToCSV(table);
+                    const blob = new Blob([csv], {type: 'text/csv'});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'datos.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+                };
+                // Insertar el botón antes de la tabla-scroll o tabla
+                const scrollDiv = container.querySelector('.table-scroll');
+                if (scrollDiv) {
+                    scrollDiv.parentNode.insertBefore(btn, scrollDiv);
+                } else {
+                    container.insertBefore(btn, table);
+                }
+            } else if (container.textContent.length < 200) {
+                // Feedback visual: mensajes cortos desaparecen tras 5s
+                setTimeout(() => { container.remove(); }, 5000);
+            }
             container.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+
+        // Convierte una tabla HTML a CSV
+        function tableToCSV(table) {
+            let csv = '';
+            const rows = table.querySelectorAll('tr');
+            for (let row of rows) {
+                const cells = row.querySelectorAll('th,td');
+                const vals = Array.from(cells).map(cell => '"' + cell.textContent.replace(/"/g, '""') + '"');
+                csv += vals.join(',') + '\n';
+            }
+            return csv;
         }
 
         document.getElementById("question").addEventListener("keydown", function (e) {
             if (e.key === "Enter") sendQuestion();
+        });
+
+        // Subida de archivos
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        fileInput.addEventListener('change', function() {
+            fileName.textContent = fileInput.files.length ? fileInput.files[0].name : '';
+        });
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            if (!fileInput.files.length) {
+                addMessage('<span style="color:#fff; background:#e74c3c; padding:6px 14px; border-radius:8px; display:inline-block;">Selecciona un archivo para subir.</span>');
+                return;
+            }
+            const allowed = ['text/plain', 'application/pdf'];
+            const ext = fileInput.files[0].name.split('.').pop().toLowerCase();
+            if (!allowed.includes(fileInput.files[0].type) && ext !== 'pdf' && ext !== 'txt') {
+                addMessage('<span style="color:#fff; background:#e67e22; padding:6px 14px; border-radius:8px; display:inline-block;">Tipo de archivo no soportado. Solo .txt o .pdf.</span>');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            showLoader(true);
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.message && data.message.includes('listo para consulta RAG')) {
+                    addMessage('<span style="color:#fff; background:#27ae60; padding:6px 14px; border-radius:8px; display:inline-block;">' + data.message + '</span>', false);
+                } else {
+                    addMessage('<span style="color:#fff; background:#e67e22; padding:6px 14px; border-radius:8px; display:inline-block;">' + (data.message || 'Archivo subido.') + '</span>', false);
+                }
+            } catch (e) {
+                addMessage('<span style="color:#fff; background:#e74c3c; padding:6px 14px; border-radius:8px; display:inline-block;">Error al subir el archivo.</span>');
+            }
+            showLoader(false);
         });
     </script>
 </body>

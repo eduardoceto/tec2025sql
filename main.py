@@ -1,12 +1,14 @@
 import sqlite3
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, UploadFile, File
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import openai
 import os
 import re
+import shutil
+import PyPDF2
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -15,6 +17,12 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 DB_PATH = "store.db"
 templates = Jinja2Templates(directory="templates")
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Almacena el último texto cargado para RAG
+last_uploaded_text = ""
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -38,9 +46,49 @@ def adaptar_sql_para_sqlite(sql_query: str) -> str:
     sql_query = sql_query.replace("''", "'")
     return sql_query
 
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    # Leer el texto del archivo (txt o pdf)
+    global last_uploaded_text
+    try:
+        if file.filename.lower().endswith('.pdf'):
+            with open(file_path, "rb") as f:
+                reader = PyPDF2.PdfReader(f)
+                text = ""
+                for page in reader.pages:
+                    text += page.extract_text() or ""
+            last_uploaded_text = text
+        else:
+            with open(file_path, "r", encoding="utf-8") as f:
+                last_uploaded_text = f.read()
+        return JSONResponse({"message": f"Archivo '{file.filename}' subido y listo para consulta RAG."})
+    except Exception as e:
+        last_uploaded_text = ""
+        return JSONResponse({"message": f"Archivo subido pero no se pudo leer el texto: {e}"})
+
 @app.post("/ask")
 def ask_question(req: QueryRequest):
     question = req.question
+    # Si hay texto cargado, usarlo como contexto para RAG
+    if last_uploaded_text:
+        # Prompt para RAG
+        prompt = f"""Eres un asistente experto. Usa el siguiente contexto para responder la pregunta de la forma más precisa posible. Si el contexto no es suficiente, responde lo mejor posible.
+
+Contexto:
+{last_uploaded_text}
+
+Pregunta: {question}
+Respuesta:"""
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        result = response.choices[0].message.content
+        return {"response": result}
+    # --- FLUJO ORIGINAL SQL ---
     # 1. Leer el prompt base desde archivo externo
     with open("prompt.txt", "r", encoding="utf-8") as f:
         prompt_base = f.read()
